@@ -1,0 +1,57 @@
+{{- if .Values.training.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "ml-service.fullname" . }}-training
+  labels:
+    {{- include "ml-service.labels" . | nindent 4 }}
+    component: training
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ml-service.fullname" . }}-training
+  minReplicas: {{ .Values.training.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.training.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.training.autoscaling.targetCPUUtilizationPercentage }}
+  {{- if .Values.training.autoscaling.targetGPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: nvidia.com/gpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.training.autoscaling.targetGPUUtilizationPercentage }}
+  {{- end }}
+---
+{{- end }}
+
+{{- if .Values.inference.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "ml-service.fullname" . }}-inference
+  labels:
+    {{- include "ml-service.labels" . | nindent 4 }}
+    component: inference
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ml-service.fullname" . }}-inference
+  minReplicas: {{ .Values.inference.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.inference.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.inference.autoscaling.targetCPUUtilizationPercentage }}
+---
+{{- end }}

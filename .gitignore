@@ -1,0 +1,87 @@
+# Terraform
+.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
+*.tfvars
+.terraform.lock.hcl
+
+# Helm
+helm/ml-service/charts/
+helm/monitoring/charts/
+
+# Kubernetes
+kubeconfig
+
+# AWS
+.aws/
+credentials
+config
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Local development
+.local/
+dev/
+development.tfvars
+staging.tfvars
+
+# Secrets (never commit!)
+secrets/
+*.key
+*.pem
+*.crt
+*.p12
+
+# Build artifacts
+dist/
+build/
+
+# Test results
+test-results/
+coverage/
+
+# Documentation builds
+docs/_build/
+docs/build/
+
+# Backup files
+*.bak
+*.backup
+
+
+

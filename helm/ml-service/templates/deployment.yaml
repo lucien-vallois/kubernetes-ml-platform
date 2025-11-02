@@ -1,0 +1,220 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ml-service.fullname" . }}-training
+  labels:
+    {{- include "ml-service.labels" . | nindent 4 }}
+    component: training
+spec:
+  {{- if not .Values.training.autoscaling.enabled }}
+  replicas: {{ .Values.training.replicas | default 1 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ml-service.selectorLabels" . | nindent 6 }}
+      component: training
+  template:
+    metadata:
+      labels:
+        {{- include "ml-service.selectorLabels" . | nindent 8 }}
+        component: training
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ml-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: training
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ .Values.training.image.repository }}:{{ .Values.training.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.training.image.pullPolicy }}
+          command:
+            - "python"
+            - "examples/train_vit.py"
+            - "--backend"
+            - "{{ .Values.training.config.backend }}"
+            - "--data-dir"
+            - "/data"
+            - "--batch-size"
+            - "{{ .Values.training.config.batchSize }}"
+            - "--learning-rate"
+            - "{{ .Values.training.config.learningRate }}"
+            - "--max-epochs"
+            - "{{ .Values.training.config.maxEpochs }}"
+            - "--checkpoint-dir"
+            - "{{ .Values.training.config.checkpointDir }}"
+            - "--use-wandb"
+            - "--use-prometheus"
+          env:
+            - name: CUDA_VISIBLE_DEVICES
+              value: "0"
+            - name: WORLD_SIZE
+              value: "{{ .Values.training.replicas | default 1 }}"
+            - name: RANK
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['batch.kubernetes.io/job-completion-index']
+            - name: MASTER_ADDR
+              value: "{{ include "ml-service.fullname" . }}-training-0"
+            - name: MASTER_PORT
+              value: "12345"
+            {{- with .Values.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: metrics
+              containerPort: 8000
+              protocol: TCP
+          volumeMounts:
+            - name: checkpoints
+              mountPath: {{ .Values.training.config.checkpointDir }}
+            - name: models
+              mountPath: {{ .Values.training.config.modelDir }}
+            - name: data
+              mountPath: /data
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.training.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: {{ include "ml-service.fullname" . }}-checkpoints
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ include "ml-service.fullname" . }}-models
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "ml-service.fullname" . }}-data
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ml-service.fullname" . }}-inference
+  labels:
+    {{- include "ml-service.labels" . | nindent 4 }}
+    component: inference
+spec:
+  {{- if not .Values.inference.autoscaling.enabled }}
+  replicas: {{ .Values.inference.replicas }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ml-service.selectorLabels" . | nindent 6 }}
+      component: inference
+  template:
+    metadata:
+      labels:
+        {{- include "ml-service.selectorLabels" . | nindent 8 }}
+        component: inference
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ml-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: inference
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ .Values.inference.image.repository }}:{{ .Values.inference.image.tag | default .Chart.AppVersion }}
+          imagePullPolicy: {{ .Values.inference.image.pullPolicy }}
+          command:
+            - "python"
+            - "examples/distributed_inference.py"
+            - "--model-path"
+            - "{{ .Values.inference.config.modelPath }}"
+            - "--data-dir"
+            - "/data"
+            - "--batch-size"
+            - "{{ .Values.inference.config.batchSize }}"
+            - "--output-dir"
+            - "/output"
+          env:
+            - name: CUDA_VISIBLE_DEVICES
+              value: "0"
+            {{- with .Values.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.inference.service.port }}
+              protocol: TCP
+            - name: metrics
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: models
+              mountPath: /models
+            - name: data
+              mountPath: /data
+            - name: output
+              mountPath: /output
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.inference.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: {{ include "ml-service.fullname" . }}-models
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "ml-service.fullname" . }}-data
+        - name: output
+          emptyDir: {}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}

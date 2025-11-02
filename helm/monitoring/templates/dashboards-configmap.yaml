@@ -1,0 +1,85 @@
+{{- if .Values.dashboards.ml-training.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "monitoring.fullname" . }}-ml-training-dashboard
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  ml-training-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "ML Training Dashboard",
+        "tags": ["ml-platform", "training"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Training Loss",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "ml_training_loss",
+                "legendFormat": "{{`{{job}}`}}"
+              }
+            ]
+          },
+          {
+            "title": "GPU Utilization",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "DCGM_FI_DEV_GPU_UTIL",
+                "legendFormat": "GPU {{`{{gpu}}`}}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+{{- end }}
+
+{{- if .Values.dashboards.ml-inference.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "monitoring.fullname" . }}-ml-inference-dashboard
+  labels:
+    {{- include "monitoring.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  ml-inference-dashboard.json: |
+    {
+      "dashboard": {
+        "title": "ML Inference Dashboard",
+        "tags": ["ml-platform", "inference"],
+        "timezone": "browser",
+        "panels": [
+          {
+            "title": "Inference Latency",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "histogram_quantile(0.95, rate(ml_inference_duration_seconds_bucket[5m]))",
+                "legendFormat": "95th percentile"
+              }
+            ]
+          },
+          {
+            "title": "Request Rate",
+            "type": "graph",
+            "targets": [
+              {
+                "expr": "rate(ml_inference_requests_total[5m])",
+                "legendFormat": "Requests/sec"
+              }
+            ]
+          }
+        ]
+      }
+    }
+{{- end }}
+
+
+

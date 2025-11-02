@@ -1,0 +1,27 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: ml-training-vpa
+  namespace: ml-platform
+  labels:
+    app: ml-training
+spec:
+  targetRef:
+    apiVersion: "batch/v1"
+    kind: Job
+    name: ml-training-job
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      minAllowed:
+        cpu: 1000m
+        memory: 1Gi
+      maxAllowed:
+        cpu: 8000m
+        memory: 32Gi
+      controlledResources: ["cpu", "memory"]
+
+
+

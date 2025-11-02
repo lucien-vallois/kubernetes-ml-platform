@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ml-service.fullname" . }}
+  labels:
+    {{- include "ml-service.labels" . | nindent 4 }}
+data:
+  # Training configuration
+  training-config.yaml: |
+    backend: {{ .Values.training.config.backend }}
+    batch_size: {{ .Values.training.config.batchSize }}
+    learning_rate: {{ .Values.training.config.learningRate }}
+    max_epochs: {{ .Values.training.config.maxEpochs }}
+    checkpoint_dir: {{ .Values.training.config.checkpointDir }}
+    model_dir: {{ .Values.training.config.modelDir }}
+    mixed_precision: true
+    gradient_accumulation_steps: 2
+
+  # Inference configuration
+  inference-config.yaml: |
+    model_path: {{ .Values.inference.config.modelPath }}
+    batch_size: {{ .Values.inference.config.batchSize }}
+    num_workers: {{ .Values.inference.config.numWorkers }}
+    timeout: {{ .Values.inference.config.timeout }}
+    device: auto
+
+  # Monitoring configuration
+  monitoring-config.yaml: |
+    enabled: {{ .Values.monitoring.enabled }}
+    prometheus_enabled: {{ .Values.monitoring.prometheus.enabled }}
+    wandb_enabled: true
+    metrics_interval: 30
+
+  # Storage configuration
+  storage-config.yaml: |
+    s3_enabled: {{ .Values.storage.s3.enabled }}
+    s3_bucket: {{ .Values.storage.s3.bucket }}
+    s3_region: {{ .Values.storage.s3.region }}
+    efs_enabled: {{ .Values.storage.efs.enabled }}
+    efs_filesystem_id: {{ .Values.storage.efs.filesystemId }}

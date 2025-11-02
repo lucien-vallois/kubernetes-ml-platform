@@ -1,0 +1,63 @@
+# Default values for monitoring stack
+prometheus:
+  enabled: true
+  server:
+    persistentVolume:
+      enabled: true
+      size: 50Gi
+    service:
+      type: ClusterIP
+      port: 80
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 1Gi
+        cpu: 500m
+
+grafana:
+  enabled: true
+  adminPassword: "admin123"
+  service:
+    type: ClusterIP
+    port: 80
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 200m
+
+kubePrometheusStack:
+  enabled: true
+  prometheus:
+    prometheusSpec:
+      retention: 30d
+      resources:
+        requests:
+          memory: 400Mi
+          cpu: 200m
+        limits:
+          memory: 1Gi
+          cpu: 1
+  grafana:
+    enabled: false  # We use separate Grafana
+  alertmanager:
+    enabled: true
+
+# Custom ML Platform dashboards
+dashboards:
+  ml-training:
+    enabled: true
+  ml-inference:
+    enabled: true
+  gpu-metrics:
+    enabled: true
+
+
+
